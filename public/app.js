@@ -29,6 +29,22 @@ let ws, myId, pc, localStream;
 let partnerActive = false;
 let prefs = { gender: "male", seeking: "any" };
 
+// ---- Persistent guest identity ----
+// A unique id kept in the browser so anonymous users are recognized on return
+// and can rejoin the chat they dropped from (no sign-in required).
+let guestId = localStorage.getItem("chatveo_guest");
+if (!guestId) {
+  guestId = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2));
+  localStorage.setItem("chatveo_guest", guestId);
+}
+// If we were recently in a chat (marker set), try to rejoin on connect.
+let attemptingReconnect = Date.now() - Number(localStorage.getItem("chatveo_active") || 0) < 60000;
+let reconnectFallback = null, reconnectCountdown = null;
+document.addEventListener("DOMContentLoaded", () => {
+  const el = document.getElementById("guestIdLine");
+  if (el) el.textContent = `Your guest ID: ${guestId.slice(0, 8)} · saved on this device`;
+});
+
 // ---- Account / premium state ----
 // Premium is now tied to a server-side account (verified via session cookie),
 // so it can't be spoofed from the client.
@@ -99,9 +115,24 @@ startBtn.addEventListener("click", async () => {
 function connect() {
   const proto = location.protocol === "https:" ? "wss" : "ws";
   ws = new WebSocket(`${proto}://${location.host}`);
-  ws.onopen = () => find();
+  ws.onopen = () => {
+    sendWs({ type: "identify", guestId }); // always announce identity first
+    if (attemptingReconnect) {
+      setStatus("Reconnecting you to your chat…");
+      clearTimeout(reconnectFallback);
+      // give the server a moment to re-pair us; if it doesn't, look for someone new
+      reconnectFallback = setTimeout(() => { if (!partnerActive) find(); }, 2500);
+    } else {
+      find();
+    }
+    attemptingReconnect = false;
+  };
   ws.onmessage = (e) => handleSignal(JSON.parse(e.data));
-  ws.onclose = () => setStatus("Disconnected. Reconnecting…") || setTimeout(connect, 1500);
+  ws.onclose = () => {
+    if (partnerActive) attemptingReconnect = true; // reconnect and try to rejoin partner
+    setStatus("Reconnecting…");
+    setTimeout(connect, 1500);
+  };
 }
 
 function sendWs(msg) {
@@ -122,9 +153,37 @@ async function handleSignal(msg) {
       setStatus("Looking for someone…");
       break;
     case "matched":
-      clearMessages();
-      addMessage("sys", "You're now chatting with a stranger. Say hi!");
+      clearTimeout(reconnectFallback);
+      clearInterval(reconnectCountdown);
+      localStorage.setItem("chatveo_active", String(Date.now())); // mark active for reconnect
+      if (msg.reconnected) {
+        addMessage("sys", "✅ Reconnected — you're back with your partner.");
+      } else {
+        clearMessages();
+        addMessage("sys", "You're now chatting with a stranger. Say hi!");
+      }
       await startCall(msg.initiator);
+      break;
+    case "partner-dropped": {
+      // Partner's connection dropped — hold and wait for them to return.
+      teardownPc();
+      addMessage("sys", "Your partner dropped. Waiting for them to reconnect…");
+      let s = msg.seconds || 45;
+      clearInterval(reconnectCountdown);
+      setStatus(`Partner dropped — waiting for them to return… (${s}s)`);
+      reconnectCountdown = setInterval(() => {
+        s -= 1;
+        if (s <= 0) clearInterval(reconnectCountdown);
+        else setStatus(`Partner dropped — waiting for them to return… (${s}s)`);
+      }, 1000);
+      break;
+    }
+    case "reconnect-timeout":
+      clearInterval(reconnectCountdown);
+      localStorage.removeItem("chatveo_active");
+      setStatus("Couldn't reconnect. Finding someone new…");
+      teardownPc();
+      find();
       break;
     case "chat":
       addMessage("them", msg.text);
@@ -142,6 +201,7 @@ async function handleSignal(msg) {
       if (pc && msg.data) { try { await pc.addIceCandidate(msg.data); } catch {} }
       break;
     case "partner-left":
+      localStorage.removeItem("chatveo_active");
       setStatus("Partner left. Finding a new match…");
       addMessage("sys", "Stranger disconnected.");
       teardownPc();
@@ -188,6 +248,8 @@ function teardownPc() {
 
 // ---- Controls ----
 $("nextBtn").addEventListener("click", () => {
+  clearInterval(reconnectCountdown);
+  localStorage.removeItem("chatveo_active");
   teardownPc();
   clearMessages();
   setStatus("Finding someone new…");
@@ -195,6 +257,8 @@ $("nextBtn").addEventListener("click", () => {
 });
 
 $("stopBtn").addEventListener("click", () => {
+  clearInterval(reconnectCountdown);
+  localStorage.removeItem("chatveo_active");
   teardownPc();
   sendWs({ type: "stop" });
   setStatus("Stopped. Tap “Next” to start again.");

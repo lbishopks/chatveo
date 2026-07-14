@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
   <meta name="theme-color" content="#0b0b12" />
   <title>Chatveo — Free Random Video Chat</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -22,7 +23,20 @@
     <!-- Age gate -->
     <div id="gate" class="screen">
       <div class="card">
-        <h1>Chatveo</h1>
+        <div class="brand">
+          <svg class="logo" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <defs>
+              <linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#ff3d77"/>
+                <stop offset="1" stop-color="#7c4dff"/>
+              </linearGradient>
+            </defs>
+            <rect width="64" height="64" rx="15" fill="url(#lg)"/>
+            <path d="M17 15 h30 a7 7 0 0 1 7 7 v15 a7 7 0 0 1 -7 7 H31 l-10 8 v-8 h-4 a7 7 0 0 1 -7 -7 V22 a7 7 0 0 1 7 -7 z" fill="#fff"/>
+            <path d="M28 23 L42 30.5 L28 38 Z" fill="url(#lg)"/>
+          </svg>
+          <h1>Chatveo</h1>
+        </div>
         <p class="tagline">Free random video chat. Meet new people instantly.</p>
         <div class="warn">
           <strong>Keep it clean.</strong> Chatveo is a general, SFW video chat. <strong>No nudity or
@@ -64,6 +78,7 @@
         <button id="goPremiumBtn" class="btn ghost premium-cta">💎 Go Premium — skip the wait &amp; remove ads</button>
         <p class="hint">Tip: choosing "Anyone" finds a match faster.</p>
         <p id="premiumStatus" class="hint premium-active hidden">💎 Premium active — priority matching, ad-free</p>
+        <p class="hint" id="guestIdLine" title="Saved on this device so you can be reconnected"></p>
       </div>
     </div>
 

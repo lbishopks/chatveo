@@ -101,8 +101,22 @@ body {
   box-shadow: 0 20px 60px rgba(0,0,0,.5);
 }
 
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.brand .logo {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  flex: none;
+  box-shadow: 0 6px 18px rgba(124, 77, 255, .35);
+}
+
 h1 {
-  margin: 0 0 4px;
+  margin: 0;
   font-size: 34px;
   background: linear-gradient(90deg, var(--accent), var(--accent2));
   -webkit-background-clip: text;
