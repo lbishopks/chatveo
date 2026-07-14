@@ -1,0 +1,338 @@
+:root {
+  --bg: #0b0b12;
+  --card: #16161f;
+  --accent: #ff3d77;
+  --accent2: #7c4dff;
+  --text: #f2f2f7;
+  --muted: #9a9ab0;
+  --ok: #2ecc71;
+  --danger: #ff4d4d;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  overscroll-behavior: none;
+}
+
+/* App shell: fixed ad bars top & bottom, stage fills the middle. */
+body {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  height: 100dvh;
+}
+
+#stage {
+  position: relative;
+  overflow: hidden;
+  min-height: 0; /* allow the grid middle row to shrink */
+}
+
+.screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.hidden { display: none !important; }
+
+/* ===== Ad banners ===== */
+.adbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #05050a;
+  overflow: hidden;
+  z-index: 5;
+}
+.adbar.top { padding-top: env(safe-area-inset-top); border-bottom: 1px solid #1c1c26; }
+.adbar.bottom { padding-bottom: env(safe-area-inset-bottom); border-top: 1px solid #1c1c26; }
+
+.ad-slot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 728px;   /* leaderboard cap on desktop */
+  height: 50px;       /* 320x50 mobile banner height */
+  text-decoration: none;
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent2), var(--accent));
+  transition: opacity .4s ease;
+  overflow: hidden;
+}
+@media (min-width: 728px) { .ad-slot { height: 90px; } } /* leaderboard */
+
+.ad-slot.fade { opacity: 0; }
+.ad-badge {
+  position: absolute;
+  top: 3px;
+  left: 5px;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  background: rgba(0,0,0,.45);
+  padding: 1px 5px;
+  border-radius: 4px;
+  color: #ffffffcc;
+}
+.ad-title { font-size: 15px; font-weight: 700; line-height: 1.1; }
+.ad-sub { font-size: 11.5px; opacity: .9; margin-top: 2px; }
+@media (min-width: 728px) {
+  .ad-title { font-size: 19px; }
+  .ad-sub { font-size: 13px; }
+}
+
+.card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--card);
+  border-radius: 20px;
+  padding: 28px 22px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.5);
+}
+
+h1 {
+  margin: 0 0 4px;
+  font-size: 34px;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+h2 { margin: 0 0 18px; font-size: 22px; }
+.tagline { color: var(--muted); margin: 0 0 18px; }
+
+.warn {
+  background: rgba(255,61,119,.1);
+  border: 1px solid rgba(255,61,119,.35);
+  color: #ffd0de;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  margin-bottom: 18px;
+}
+
+.agree {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 14px;
+  color: var(--muted);
+  margin-bottom: 20px;
+}
+.agree input { width: 20px; height: 20px; margin-top: 1px; accent-color: var(--accent); }
+.agree a { color: var(--accent); }
+
+.field { margin-bottom: 20px; }
+.field > label {
+  display: block;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.seg { display: flex; gap: 8px; }
+.seg button {
+  flex: 1;
+  padding: 12px 6px;
+  border: 1px solid #2a2a37;
+  background: #1d1d28;
+  color: var(--text);
+  border-radius: 12px;
+  font-size: 15px;
+  cursor: pointer;
+  transition: .15s;
+}
+.seg button.active {
+  border-color: var(--accent);
+  background: linear-gradient(135deg, rgba(255,61,119,.25), rgba(124,77,255,.25));
+}
+
+.btn {
+  width: 100%;
+  padding: 15px;
+  border: none;
+  border-radius: 14px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: .15s transform, .15s opacity;
+}
+.btn:active { transform: scale(.97); }
+.btn.primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; }
+.btn.primary:disabled { opacity: .4; cursor: not-allowed; }
+.btn.ghost { background: transparent; border: 1px solid #33333f; color: var(--text); }
+.btn.danger { background: rgba(255,77,77,.15); border: 1px solid var(--danger); color: var(--danger); }
+.btn.icon { background: #1d1d28; border: 1px solid #2a2a37; }
+
+.hint { color: var(--muted); font-size: 13px; text-align: center; margin: 12px 0 0; }
+
+/* Chat screen */
+#chat { flex-direction: column; padding: 0; }
+.videos {
+  position: relative;
+  flex: 1;
+  width: 100%;
+  background: #000;
+  overflow: hidden;
+}
+#remoteVideo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #000;
+}
+#localVideo {
+  position: absolute;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  right: 16px;
+  width: 28vw;
+  max-width: 130px;
+  aspect-ratio: 3/4;
+  object-fit: cover;
+  border-radius: 14px;
+  border: 2px solid rgba(255,255,255,.35);
+  background: #111;
+  z-index: 2;
+}
+.status {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--muted);
+  font-size: 16px;
+  text-align: center;
+  padding: 0 24px;
+  z-index: 1;
+}
+
+.controls {
+  display: flex;
+  gap: 10px;
+  padding: 14px 14px calc(14px + env(safe-area-inset-bottom));
+  background: var(--card);
+  align-items: center;
+}
+.controls .btn { width: auto; }
+.controls .primary { flex: 1; }
+.controls .icon, .controls .danger { width: 54px; padding: 14px 0; font-size: 20px; }
+
+/* Modal */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 10;
+}
+.modal-card {
+  background: var(--card);
+  border-radius: 18px;
+  padding: 24px;
+  max-width: 420px;
+  width: 100%;
+}
+.modal-card h3 { margin-top: 0; }
+.modal-card ul { color: var(--muted); font-size: 14px; line-height: 1.7; padding-left: 20px; }
+
+/* ===== Text chat overlay ===== */
+.messages {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 64px;
+  max-height: 45%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  z-index: 3;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to top, #000 80%, transparent);
+  mask-image: linear-gradient(to top, #000 80%, transparent);
+}
+.msg {
+  max-width: 78%;
+  padding: 7px 11px;
+  border-radius: 14px;
+  font-size: 14px;
+  line-height: 1.35;
+  word-break: break-word;
+  pointer-events: auto;
+}
+.msg.them { align-self: flex-start; background: rgba(30,30,42,.92); border-bottom-left-radius: 4px; }
+.msg.you  { align-self: flex-end; background: linear-gradient(135deg, var(--accent), var(--accent2)); border-bottom-right-radius: 4px; }
+.msg.sys  { align-self: center; background: rgba(0,0,0,.5); color: var(--muted); font-size: 12.5px; }
+
+.chat-input {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  gap: 8px;
+  z-index: 4;
+}
+.chat-input input {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 14px;
+  border-radius: 22px;
+  border: 1px solid #2a2a37;
+  background: rgba(10,10,16,.85);
+  color: var(--text);
+  font-size: 15px;
+  backdrop-filter: blur(6px);
+}
+.chat-input input:focus { outline: none; border-color: var(--accent); }
+.chat-input .send { width: auto; padding: 12px 18px; border-radius: 22px; }
+
+/* ===== Auth inputs ===== */
+.input {
+  width: 100%;
+  padding: 13px 14px;
+  margin-bottom: 10px;
+  border-radius: 12px;
+  border: 1px solid #2a2a37;
+  background: #1d1d28;
+  color: var(--text);
+  font-size: 15px;
+}
+.input:focus { outline: none; border-color: var(--accent); }
+
+/* ===== Premium ===== */
+.premium-cta { margin-top: 10px; color: #ffd479; border-color: #6a5720; background: rgba(255,196,84,.08); }
+.premium-active { color: #ffd479; }
+.premium-card { text-align: center; }
+.premium-card .price { font-size: 30px; font-weight: 800; margin: 4px 0 14px; }
+.premium-card .price span { background: linear-gradient(90deg, var(--accent), var(--accent2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.perks { list-style: none; padding: 0; text-align: left; margin: 0 0 18px; }
+.perks li { padding: 7px 0; border-bottom: 1px solid #22222d; font-size: 15px; }
+.premium-card .btn { margin-bottom: 8px; }
+
+/* Hide ad bars for premium users.
+   Collapse to zero height instead of display:none so the bars remain grid
+   items — otherwise #stage would fall into the "auto" row and collapse. */
+body.premium .adbar {
+  height: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+}

@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chatveo Admin</title>
+  <style>
+    :root { --bg:#0b0b12; --card:#16161f; --line:#242430; --text:#f2f2f7; --muted:#9a9ab0;
+            --accent:#7c4dff; --danger:#ff4d4d; --ok:#2ecc71; --warn:#ffb64d; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--text);
+           font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+    header { display:flex; align-items:center; justify-content:space-between;
+             padding:16px 20px; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--bg); z-index:2; }
+    header h1 { font-size:20px; margin:0; }
+    header .meta { color:var(--muted); font-size:13px; }
+    main { padding:20px; max-width:1100px; margin:0 auto; }
+    .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin-bottom:24px; }
+    .stat { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; }
+    .stat .n { font-size:28px; font-weight:800; }
+    .stat .l { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.05em; margin-top:4px; }
+    section { background:var(--card); border:1px solid var(--line); border-radius:14px; margin-bottom:20px; overflow:hidden; }
+    section h2 { font-size:15px; margin:0; padding:14px 16px; border-bottom:1px solid var(--line); }
+    .tablewrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th, td { text-align:left; padding:9px 12px; border-bottom:1px solid var(--line); white-space:nowrap; }
+    th { color:var(--muted); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
+    td.mono, th.mono { font-family:ui-monospace,Menlo,monospace; font-size:12px; }
+    .pill { padding:2px 8px; border-radius:20px; font-size:11px; }
+    .pill.waiting { background:rgba(255,182,77,.15); color:var(--warn); }
+    .pill.paired { background:rgba(46,204,113,.15); color:var(--ok); }
+    .pill.idle { background:rgba(154,154,176,.15); color:var(--muted); }
+    .pill.prem { background:rgba(124,77,255,.2); color:#c3adff; }
+    button.act { border:none; border-radius:8px; padding:6px 10px; font-size:12px; cursor:pointer; color:#fff; margin-right:6px; }
+    button.kick { background:#3a3a49; }
+    button.ban { background:var(--danger); }
+    button.unban { background:var(--ok); }
+    .empty { padding:18px 16px; color:var(--muted); font-size:13px; }
+    .refresh { background:var(--accent); color:#fff; border:none; border-radius:10px; padding:8px 14px; cursor:pointer; font-size:13px; }
+    .subhead { font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin:14px 16px 4px; }
+    .adform { display:flex; flex-wrap:wrap; gap:8px; padding:14px 16px; border-bottom:1px solid var(--line); }
+    .in { flex:1; min-width:140px; padding:8px 10px; border-radius:8px; border:1px solid var(--line); background:#1d1d28; color:var(--text); font-size:13px; }
+    .toggle { cursor:pointer; font-size:18px; }
+    button.act.save { background:var(--accent); }
+    a.link { color:#9bb7ff; font-size:12px; }
+    #transcript { padding:14px 16px; border-top:1px solid var(--line); }
+    .tmsg { margin:4px 0; font-size:13px; }
+    .tmsg .who { color:var(--muted); font-family:ui-monospace,Menlo,monospace; margin-right:8px; }
+    .tclose { float:right; cursor:pointer; color:var(--muted); }
+    .anfield { margin:12px 0; }
+    .anfield label { display:block; font-size:12px; color:var(--muted); margin-bottom:4px; }
+    .ta { width:100%; min-height:60px; padding:9px 11px; border-radius:8px; border:1px solid var(--line); background:#1d1d28; color:var(--text); font-family:ui-monospace,Menlo,monospace; font-size:12px; resize:vertical; }
+    .chk { display:flex; align-items:center; gap:8px; font-size:14px; margin-bottom:6px; }
+    .chk input { width:18px; height:18px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>💎 Chatveo Admin</h1>
+    <div>
+      <span class="meta" id="updated">—</span>
+      <button class="refresh" onclick="refreshAll()">Refresh</button>
+    </div>
+  </header>
+  <main>
+    <div class="cards" id="cards"></div>
+
+    <section>
+      <h2>Live users</h2>
+      <div class="tablewrap"><table id="usersTable">
+        <thead><tr><th>ID</th><th>IP</th><th>Gender</th><th>Seeking</th><th>State</th><th>Premium</th><th>Connected</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <div class="empty" id="usersEmpty" style="display:none">No users online.</div>
+    </section>
+
+    <section>
+      <h2>Reports</h2>
+      <div class="tablewrap"><table id="reportsTable">
+        <thead><tr><th>Time</th><th>Reason</th><th>Reported IP</th><th>Reporter IP</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <div class="empty" id="reportsEmpty" style="display:none">No reports.</div>
+    </section>
+
+    <section>
+      <h2>Banned IPs</h2>
+      <div class="tablewrap"><table id="bansTable">
+        <thead><tr><th>IP</th><th>Reason</th><th>Banned at</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <div class="empty" id="bansEmpty" style="display:none">No bans.</div>
+    </section>
+
+    <section>
+      <h2>Chat logs</h2>
+      <div class="adform" style="border-bottom:1px solid var(--line)">
+        <input id="chatSearch" class="in" placeholder="Search by IP, email, or message text…" />
+        <button class="refresh" onclick="searchChats()">Search</button>
+        <button class="refresh" style="background:#3a3a49" onclick="document.getElementById('chatSearch').value='';searchChats()">Clear</button>
+      </div>
+      <div class="tablewrap"><table id="chatsTable">
+        <thead><tr><th>Time</th><th>Participants (IP / account)</th><th>Msgs</th><th>Preview</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <div class="empty" id="chatsEmpty" style="display:none">No chat sessions retained yet.</div>
+      <div id="transcript" style="display:none"></div>
+    </section>
+
+    <section>
+      <h2>Billing</h2>
+      <div class="cards" id="billingCards" style="padding:14px 16px 0"></div>
+      <h3 class="subhead">Recent payments</h3>
+      <div class="tablewrap"><table id="paymentsTable">
+        <thead><tr><th>Time</th><th>Email</th><th>Amount</th><th>Source</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <div class="empty" id="paymentsEmpty" style="display:none">No payments yet.</div>
+    </section>
+
+    <section>
+      <h2>Users (accounts)</h2>
+      <div class="tablewrap"><table id="accountsTable">
+        <thead><tr><th>Email</th><th>Premium</th><th>Joined</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <div class="empty" id="accountsEmpty" style="display:none">No registered accounts yet.</div>
+    </section>
+
+    <section>
+      <h2>Ad network (earn money automatically)</h2>
+      <div style="padding:14px 16px">
+        <p class="muted" style="margin-top:0">
+          Sign up with an ad network, create two banner "zones" (mobile <b>320×50</b> and desktop
+          <b>728×90</b>), and paste the zone tags below. When enabled, the network fills &amp; rotates
+          the top/bottom banners and pays you — this overrides the house ads.
+          <br>Networks that accept general chat/UGC sites: <b>Adsterra</b>, <b>Monetag</b>,
+          <b>HilltopAds</b>, <b>Media.net</b>. (Google AdSense is possible but strict on random-chat.)
+        </p>
+        <label class="chk"><input type="checkbox" id="anEnabled"> <b>Enable ad network</b> (turns off house ads)</label>
+        <div class="anfield"><label>Network name (optional)</label>
+          <input id="anName" class="in" placeholder="e.g. Adsterra"></div>
+        <div class="anfield"><label>Head / loader script (optional — paste once if the network gives one)</label>
+          <textarea id="anHead" class="ta" placeholder="&lt;script src=&quot;//network.com/loader.js&quot;&gt;&lt;/script&gt;"></textarea></div>
+        <div class="anfield"><label>Top banner zone tag</label>
+          <textarea id="anTop" class="ta" placeholder="Paste the zone &lt;script&gt;/&lt;ins&gt;/&lt;iframe&gt; tag for the TOP banner"></textarea></div>
+        <div class="anfield"><label>Bottom banner zone tag</label>
+          <textarea id="anBottom" class="ta" placeholder="Paste the zone tag for the BOTTOM banner"></textarea></div>
+        <button class="refresh" onclick="saveAdNetwork()">Save ad network</button>
+        <span id="anSaved" class="muted" style="margin-left:10px"></span>
+      </div>
+    </section>
+
+    <section>
+      <h2>Advertising control panel <span class="muted" style="font-size:12px">(house ads — shown when no ad network is enabled)</span></h2>
+      <div class="adform">
+        <input id="adTitle" class="in" placeholder="Title (e.g. 💎 Go Premium)" />
+        <input id="adSub" class="in" placeholder="Subtitle" />
+        <input id="adHref" class="in" placeholder="Link URL (https://…)" />
+        <input id="adImg" class="in" placeholder="Image URL (optional)" />
+        <button class="refresh" onclick="addAd()">+ Add ad</button>
+      </div>
+      <div class="tablewrap"><table id="adsTable">
+        <thead><tr><th>Enabled</th><th>Title</th><th>Subtitle</th><th>Link</th><th>Image</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <div class="empty" id="adsEmpty" style="display:none">No ads configured.</div>
+    </section>
+  </main>
+
+  <script>
+    const api = (path, opts) => fetch(path, opts).then(r => r.json());
+    const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const short = (id) => id ? id.slice(0, 8) : "—";
+    const time = (t) => t ? new Date(t).toLocaleString() : "—";
+
+    const money = (cents, cur="usd") => (cents/100).toLocaleString(undefined,{style:"currency",currency:(cur||"usd").toUpperCase()});
+
+    async function refreshAll() {
+      const [stats, users, reports, bans, accounts, billing, ads] = await Promise.all([
+        api("/api/admin/stats"), api("/api/admin/users"),
+        api("/api/admin/reports"), api("/api/admin/bans"),
+        api("/api/admin/accounts"), api("/api/admin/billing"), api("/api/admin/ads"),
+      ]);
+      renderCards(stats); renderUsers(users); renderReports(reports); renderBans(bans);
+      renderAccounts(accounts); renderBilling(billing); renderAds(ads);
+      renderChats(await api("/api/admin/chats" + chatQuery()));
+      loadAdNetwork(await api("/api/admin/adnetwork"));
+      document.getElementById("updated").textContent = "Updated " + new Date().toLocaleTimeString();
+    }
+
+    function loadAdNetwork(cfg) {
+      // Don't clobber fields the admin is editing.
+      const ae = document.activeElement;
+      if (ae && ae.closest && ae.closest("#anEnabled,#anName,#anHead,#anTop,#anBottom")) return;
+      document.getElementById("anEnabled").checked = !!cfg.enabled;
+      document.getElementById("anName").value = cfg.name || "";
+      document.getElementById("anHead").value = cfg.headHtml || "";
+      document.getElementById("anTop").value = cfg.topHtml || "";
+      document.getElementById("anBottom").value = cfg.bottomHtml || "";
+    }
+    async function saveAdNetwork() {
+      const body = {
+        enabled: document.getElementById("anEnabled").checked,
+        name: document.getElementById("anName").value,
+        headHtml: document.getElementById("anHead").value,
+        topHtml: document.getElementById("anTop").value,
+        bottomHtml: document.getElementById("anBottom").value,
+      };
+      await post("/api/admin/adnetwork", body);
+      const s = document.getElementById("anSaved");
+      s.textContent = "Saved ✓ — reload the site to see it"; setTimeout(() => s.textContent = "", 3000);
+    }
+
+    function chatQuery() {
+      const q = (document.getElementById("chatSearch")||{}).value || "";
+      return q ? ("?q=" + encodeURIComponent(q.trim())) : "";
+    }
+    function partyLabel(p) { return p.map(x => esc(x.email || x.ip) + (x.gender ? " ("+esc(x.gender[0])+")" : "")).join(" ↔ "); }
+
+    function renderChats(list) {
+      const tb = document.querySelector("#chatsTable tbody");
+      document.getElementById("chatsEmpty").style.display = list.length ? "none" : "block";
+      tb.innerHTML = list.map(c => `<tr>
+        <td>${time(c.at)}</td>
+        <td class="mono">${partyLabel(c.participants)}</td>
+        <td>${c.messageCount}</td>
+        <td>${esc((c.preview||"").slice(0,40))}</td>
+        <td><button class="act save" onclick="viewChat('${c.id}')">View</button></td>
+      </tr>`).join("");
+    }
+
+    async function searchChats() { renderChats(await api("/api/admin/chats" + chatQuery())); }
+
+    async function viewChat(id) {
+      const s = await api("/api/admin/chats/" + id);
+      const nameFor = (peerId) => {
+        const p = s.participants.find(x => x.peerId === peerId);
+        return p ? (p.email || p.ip) : peerId.slice(0,8);
+      };
+      const el = document.getElementById("transcript");
+      el.style.display = "block";
+      el.innerHTML =
+        `<span class="tclose" onclick="document.getElementById('transcript').style.display='none'">✕ close</span>` +
+        `<h3 class="subhead">Transcript — ${esc(partyLabel(s.participants))}</h3>` +
+        `<div class="muted" style="font-size:12px;margin-bottom:8px">${time(s.at)} → ${s.endedAt ? time(s.endedAt) : "ongoing"}</div>` +
+        (s.messages.length
+          ? s.messages.map(m => `<div class="tmsg"><span class="who">${esc(nameFor(m.from))}:</span>${esc(m.text)}</div>`).join("")
+          : `<div class="muted">No messages were sent in this session.</div>`);
+      el.scrollIntoView({ behavior: "smooth" });
+    }
+
+    function renderCards(s) {
+      const cards = [
+        ["Online", s.online], ["Waiting", s.waiting], ["Active pairs", s.activePairs],
+        ["Premium", s.premium], ["Reports", s.reports], ["Bans", s.bans],
+      ];
+      document.getElementById("cards").innerHTML = cards.map(
+        ([l, n]) => `<div class="stat"><div class="n">${n}</div><div class="l">${l}</div></div>`
+      ).join("");
+    }
+
+    function renderUsers(users) {
+      const tb = document.querySelector("#usersTable tbody");
+      document.getElementById("usersEmpty").style.display = users.length ? "none" : "block";
+      tb.innerHTML = users.map(u => `<tr>
+        <td class="mono">${short(u.id)}</td>
+        <td class="mono">${esc(u.ip)}</td>
+        <td>${esc(u.gender)}</td>
+        <td>${esc(u.seeking)}</td>
+        <td><span class="pill ${u.state}">${u.state}</span></td>
+        <td>${u.premium ? '<span class="pill prem">Premium</span>' : "—"}</td>
+        <td>${time(u.connectedAt)}</td>
+        <td>
+          <button class="act kick" onclick="kick('${u.id}')">Kick</button>
+          <button class="act ban" onclick="ban('${u.id}', null)">Ban IP</button>
+        </td></tr>`).join("");
+    }
+
+    function renderReports(reports) {
+      const tb = document.querySelector("#reportsTable tbody");
+      document.getElementById("reportsEmpty").style.display = reports.length ? "none" : "block";
+      tb.innerHTML = reports.map(r => `<tr>
+        <td>${time(r.at)}</td>
+        <td>${esc(r.reason)}</td>
+        <td class="mono">${esc(r.reportedIp || "—")}</td>
+        <td class="mono">${esc(r.reporterIp || "—")}</td>
+        <td>${r.reportedIp ? `<button class="act ban" onclick="banIp('${esc(r.reportedIp)}')">Ban reported IP</button>` : ""}</td>
+      </tr>`).join("");
+    }
+
+    function renderBans(bans) {
+      const tb = document.querySelector("#bansTable tbody");
+      document.getElementById("bansEmpty").style.display = bans.length ? "none" : "block";
+      tb.innerHTML = bans.map(b => `<tr>
+        <td class="mono">${esc(b.ip)}</td>
+        <td>${esc(b.reason)}</td>
+        <td>${time(b.at)}</td>
+        <td><button class="act unban" onclick="unban('${esc(b.ip)}')">Unban</button></td>
+      </tr>`).join("");
+    }
+
+    function renderBilling(b) {
+      document.getElementById("billingCards").innerHTML = [
+        ["Subscribers", b.premiumCount],
+        ["MRR", money(b.mrrCents)],
+        ["Price", money(b.priceCents)],
+        ["Total revenue", money(b.totalRevenueCents)],
+        ["Stripe", b.stripeConfigured ? "Live" : "Demo"],
+      ].map(([l,n]) => `<div class="stat"><div class="n" style="font-size:22px">${n}</div><div class="l">${l}</div></div>`).join("");
+      const tb = document.querySelector("#paymentsTable tbody");
+      document.getElementById("paymentsEmpty").style.display = b.payments.length ? "none":"block";
+      tb.innerHTML = b.payments.map(p => `<tr>
+        <td>${time(p.at)}</td><td>${esc(p.email||"—")}</td>
+        <td>${money(p.amount||0, p.currency)}</td>
+        <td><span class="pill ${p.source==='stripe'?'paired':'idle'}">${esc(p.source)}</span></td>
+      </tr>`).join("");
+    }
+
+    function renderAccounts(list) {
+      const tb = document.querySelector("#accountsTable tbody");
+      document.getElementById("accountsEmpty").style.display = list.length ? "none":"block";
+      tb.innerHTML = list.map(u => `<tr>
+        <td>${esc(u.email)}</td>
+        <td>${u.premium?'<span class="pill prem">Premium</span>':'—'}</td>
+        <td>${time(u.createdAt)}</td>
+        <td>${u.banned?'<span class="pill" style="background:rgba(255,77,77,.15);color:#ff8a8a">Suspended</span>':'<span class="pill paired">Active</span>'}</td>
+        <td>
+          <button class="act save" onclick="setUserPremium('${u.id}', ${!u.premium})">${u.premium?'Revoke premium':'Grant premium'}</button>
+          <button class="act ${u.banned?'unban':'ban'}" onclick="setUserBanned('${u.id}', ${!u.banned})">${u.banned?'Unsuspend':'Suspend'}</button>
+        </td></tr>`).join("");
+    }
+
+    function renderAds(ads) {
+      // Don't clobber inputs the admin is currently editing.
+      const ae = document.activeElement;
+      if (ae && ae.closest && ae.closest("#adsTable, .adform")) return;
+      const tb = document.querySelector("#adsTable tbody");
+      document.getElementById("adsEmpty").style.display = ads.length ? "none":"block";
+      tb.innerHTML = ads.map(a => `<tr data-id="${a.id}">
+        <td><span class="toggle" title="Toggle" onclick="toggleAd('${a.id}', ${!a.enabled})">${a.enabled?'✅':'⬜'}</span></td>
+        <td><input class="in" value="${esc(a.title)}" data-f="title" style="min-width:120px"></td>
+        <td><input class="in" value="${esc(a.sub)}" data-f="sub" style="min-width:120px"></td>
+        <td><input class="in" value="${esc(a.href)}" data-f="href" style="min-width:120px"></td>
+        <td><input class="in" value="${esc(a.img)}" data-f="img" style="min-width:100px"></td>
+        <td>
+          <button class="act save" onclick="saveAd('${a.id}', this)">Save</button>
+          <button class="act ban" onclick="deleteAd('${a.id}')">Delete</button>
+        </td></tr>`).join("");
+    }
+
+    const post = (path, body) => fetch(path, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body) }).then(r=>r.json());
+    async function kick(id) { await post("/api/admin/kick", { id }); refreshAll(); }
+    async function ban(id) { if(confirm("Ban this user's IP?")){ await post("/api/admin/ban", { id, reason:"admin" }); refreshAll(); } }
+    async function banIp(ip) { if(confirm("Ban IP "+ip+"?")){ await post("/api/admin/ban", { ip, reason:"report" }); refreshAll(); } }
+    async function unban(ip) { await post("/api/admin/unban", { ip }); refreshAll(); }
+    async function setUserPremium(id, premium) { await post("/api/admin/accounts/premium", { id, premium }); refreshAll(); }
+    async function setUserBanned(id, banned) { await post("/api/admin/accounts/ban", { id, banned }); refreshAll(); }
+
+    // Ads
+    async function addAd() {
+      const body = { title:val("adTitle"), sub:val("adSub"), href:val("adHref")||"#", img:val("adImg") };
+      if(!body.title && !body.img){ alert("Add a title or image."); return; }
+      await post("/api/admin/ads", body);
+      ["adTitle","adSub","adHref","adImg"].forEach(id=>document.getElementById(id).value="");
+      refreshAll();
+    }
+    async function saveAd(id, btn) {
+      const row = btn.closest("tr"); const patch = { id };
+      row.querySelectorAll("input[data-f]").forEach(inp => patch[inp.dataset.f] = inp.value);
+      await post("/api/admin/ads/update", patch);
+      btn.textContent = "Saved ✓"; setTimeout(()=>btn.textContent="Save", 1200);
+    }
+    async function toggleAd(id, enabled) { await post("/api/admin/ads/update", { id, enabled }); refreshAll(); }
+    async function deleteAd(id) { if(confirm("Delete this ad?")){ await post("/api/admin/ads/delete", { id }); refreshAll(); } }
+    const val = (id) => document.getElementById(id).value.trim();
+
+    refreshAll();
+    setInterval(refreshAll, 5000);
+  </script>
+</body>
+</html>

@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+  <meta name="theme-color" content="#0b0b12" />
+  <title>Chatveo — Free Random Video Chat</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- ===== TOP AD BANNER ===== -->
+  <div id="adTop" class="adbar top">
+    <a class="ad-slot" id="adTopSlot" href="#" target="_blank" rel="noopener nofollow">
+      <span class="ad-badge">Ad</span>
+      <span class="ad-title"></span>
+      <span class="ad-sub"></span>
+    </a>
+  </div>
+
+  <!-- ===== MAIN STAGE ===== -->
+  <main id="stage">
+    <!-- Age gate -->
+    <div id="gate" class="screen">
+      <div class="card">
+        <h1>Chatveo</h1>
+        <p class="tagline">Free random video chat. Meet new people instantly.</p>
+        <div class="warn">
+          <strong>Keep it clean.</strong> Chatveo is a general, SFW video chat. <strong>No nudity or
+          sexual content</strong> — it's prohibited and will get you banned. You must be
+          <strong>18 or older</strong>. Harassment and illegal content are reportable, and we have
+          <strong>zero tolerance for anything involving minors</strong> — such data is preserved and
+          reported to law enforcement immediately.
+        </div>
+        <label class="agree">
+          <input type="checkbox" id="agree" />
+          <span>I am 18+ and agree to the
+            <a href="/terms.html" target="_blank" rel="noopener">Terms &amp; Child-Safety Policy</a>.</span>
+        </label>
+        <button id="enterBtn" class="btn primary" disabled>Enter</button>
+      </div>
+    </div>
+
+    <!-- Setup / preferences -->
+    <div id="setup" class="screen hidden">
+      <div class="card">
+        <h2>Who would you like to meet?</h2>
+        <div class="field">
+          <label>I am</label>
+          <div class="seg" data-group="gender">
+            <button data-val="male">Man</button>
+            <button data-val="female">Woman</button>
+            <button data-val="other">Other</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Show me</label>
+          <div class="seg" data-group="seeking">
+            <button data-val="male">Men</button>
+            <button data-val="female">Women</button>
+            <button data-val="any" class="active">Anyone</button>
+          </div>
+        </div>
+        <button id="startBtn" class="btn primary">Start chatting</button>
+        <button id="goPremiumBtn" class="btn ghost premium-cta">💎 Go Premium — skip the wait &amp; remove ads</button>
+        <p class="hint">Tip: choosing "Anyone" finds a match faster.</p>
+        <p id="premiumStatus" class="hint premium-active hidden">💎 Premium active — priority matching, ad-free</p>
+      </div>
+    </div>
+
+    <!-- Chat -->
+    <div id="chat" class="screen hidden">
+      <div class="videos">
+        <video id="remoteVideo" autoplay playsinline></video>
+        <video id="localVideo" autoplay playsinline muted></video>
+        <div id="status" class="status">Tap “Start” to begin</div>
+
+        <!-- Text chat overlay -->
+        <div id="messages" class="messages"></div>
+        <form id="chatForm" class="chat-input">
+          <input id="chatText" type="text" autocomplete="off" placeholder="Say something…" maxlength="1000" />
+          <button type="submit" class="btn primary send">Send</button>
+        </form>
+      </div>
+      <div class="controls">
+        <button id="nextBtn" class="btn primary">Next ›</button>
+        <button id="stopBtn" class="btn ghost">Stop</button>
+        <button id="muteBtn" class="btn icon" title="Mute mic">🎤</button>
+        <button id="camBtn" class="btn icon" title="Camera">📷</button>
+        <button id="reportBtn" class="btn danger" title="Report">⚑</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- ===== BOTTOM AD BANNER ===== -->
+  <div id="adBottom" class="adbar bottom">
+    <a class="ad-slot" id="adBottomSlot" href="#" target="_blank" rel="noopener nofollow">
+      <span class="ad-badge">Ad</span>
+      <span class="ad-title"></span>
+      <span class="ad-sub"></span>
+    </a>
+  </div>
+
+  <!-- Auth modal (login / register — required to buy Premium) -->
+  <div id="authModal" class="modal hidden">
+    <div class="modal-card">
+      <h3 id="authTitle">Log in</h3>
+      <p class="hint" style="text-align:left;margin-top:0">An account is only needed for Premium. Chatting stays anonymous.</p>
+      <form id="authForm">
+        <input id="authEmail" class="input" type="email" placeholder="Email" autocomplete="email" required />
+        <input id="authPass" class="input" type="password" placeholder="Password (6+ chars)" autocomplete="current-password" required />
+        <button type="submit" class="btn primary" id="authSubmit">Log in</button>
+      </form>
+      <p class="hint" id="authError" style="color:var(--danger)"></p>
+      <p class="hint">
+        <span id="authToggleText">No account?</span>
+        <a href="#" id="authToggle">Create one</a>
+      </p>
+      <button class="btn ghost" id="closeAuth">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Premium modal -->
+  <div id="premiumModal" class="modal hidden">
+    <div class="modal-card premium-card">
+      <h3>💎 Chatveo Premium</h3>
+      <div class="price"><span>$9.99</span>/month</div>
+      <ul class="perks">
+        <li>⚡ Priority matching — skip the queue</li>
+        <li>🚫 No ads, ever</li>
+        <li>🎯 Gender filter always available</li>
+        <li>💬 Unlimited text chat</li>
+      </ul>
+      <button class="btn primary" id="checkoutBtn">Upgrade now</button>
+      <button class="btn ghost" id="closePremium">Maybe later</button>
+      <p class="hint" id="premiumNote"></p>
+    </div>
+  </div>
+
+  <script src="ads.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

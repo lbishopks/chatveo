@@ -1,0 +1,16 @@
+{
+  "name": "chatveo",
+  "version": "1.0.0",
+  "description": "Chatveo — free mobile-friendly general random video chat with match preferences",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning server.js",
+    "dev": "node --disable-warning=ExperimentalWarning --watch server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "stripe": "^17.0.0",
+    "ws": "^8.18.0"
+  }
+}
