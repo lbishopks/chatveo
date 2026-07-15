@@ -1,24 +1,27 @@
-# Render Blueprint — deploys Chatveo as a FREE web service ($0/mo).
-# In Render: New → Blueprint → connect your repo. Render reads this file.
-#
-# NOTE: The free plan has NO persistent disk, so the SQLite database resets on
-# each redeploy/restart. That's fine for testing. For a durable database later,
-# switch `plan: free` -> `plan: starter` and add back a `disk:` block + DATA_DIR
-# (that requires a paid instance).
+# Render Blueprint — Chatveo on the Starter plan with a persistent disk.
+# The disk keeps the SQLite database (accounts, chat logs, payments, ads) alive
+# across restarts and redeploys.
 services:
   - type: web
     name: chatveo
     runtime: node
-    plan: free               # $0/mo; sleeps after ~15 min idle, wakes on first request
+    plan: starter            # always-awake; required for a persistent disk
     buildCommand: npm install
     startCommand: npm start
     healthCheckPath: /health
+    # Persistent disk mounted at /data; DATA_DIR points the DB there.
+    disk:
+      name: chatveo-data
+      mountPath: /data
+      sizeGB: 1
     envVars:
       - key: NODE_VERSION
         value: "22"
+      - key: DATA_DIR
+        value: /data
       - key: ADMIN_USER
         value: admin
-      # Secrets — set these in the Render dashboard (sync:false = not stored in git):
+      # Secrets — set in the Render dashboard (sync:false = not stored in git):
       - key: ADMIN_PASSWORD
         sync: false
       - key: STRIPE_SECRET_KEY
