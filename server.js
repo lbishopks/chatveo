@@ -8,8 +8,10 @@ import { store } from "./store.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
-const ADMIN_USER = process.env.ADMIN_USER || "admin";
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "changeme";
+// .trim() guards against a stray trailing space/newline sneaking into the env
+// value (common when a secret is pasted), which would make login impossible.
+const ADMIN_USER = (process.env.ADMIN_USER || "admin").trim();
+const ADMIN_PASSWORD = (process.env.ADMIN_PASSWORD || "changeme").trim();
 
 const app = express();
 app.set("trust proxy", true); // honor X-Forwarded-For behind a host/proxy
@@ -608,4 +610,8 @@ wss.on("connection", (ws, req) => {
 
 server.listen(PORT, () => {
   console.log(`Chatveo running on http://localhost:${PORT}`);
+  // Diagnostic (no secrets logged): confirms whether the stored admin password
+  // had stray surrounding whitespace that we trimmed.
+  const rawPass = process.env.ADMIN_PASSWORD || "";
+  console.log(`[admin] ADMIN_USER set=${!!process.env.ADMIN_USER}, password whitespace-trimmed=${rawPass !== ADMIN_PASSWORD}`);
 });
