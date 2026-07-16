@@ -1,7 +1,7 @@
 import express from "express";
 import { createServer } from "http";
 import { WebSocketServer } from "ws";
-import { randomUUID, timingSafeEqual } from "crypto";
+import { randomUUID, timingSafeEqual, createHash } from "crypto";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import { store } from "./store.js";
@@ -610,8 +610,10 @@ wss.on("connection", (ws, req) => {
 
 server.listen(PORT, () => {
   console.log(`Chatveo running on http://localhost:${PORT}`);
-  // Diagnostic (no secrets logged): confirms whether the stored admin password
-  // had stray surrounding whitespace that we trimmed.
-  const rawPass = process.env.ADMIN_PASSWORD || "";
-  console.log(`[admin] ADMIN_USER set=${!!process.env.ADMIN_USER}, password whitespace-trimmed=${rawPass !== ADMIN_PASSWORD}`);
+  // Diagnostic (no secret leaked): logs the ADMIN_USER value, and the password's
+  // length + a one-way SHA-256 hash so we can confirm the exact stored value
+  // without exposing it. Compare the hash to sha256 of the candidate password.
+  const userHash = createHash("sha256").update(ADMIN_USER).digest("hex").slice(0, 12);
+  const passHash = createHash("sha256").update(ADMIN_PASSWORD).digest("hex");
+  console.log(`[admin] user="${ADMIN_USER}" (sha12=${userHash}) passLen=${ADMIN_PASSWORD.length} passSha256=${passHash}`);
 });
