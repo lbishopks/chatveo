@@ -96,7 +96,7 @@ agree.addEventListener("change", refreshGate);
   // Fail-open safety net: never let a broken/blocked bot-check lock real users
   // out. If Turnstile hasn't produced a token in 12s, drop the requirement.
   const failOpen = () => { turnstileEnabled = false; turnstileToken = null; refreshGate(); };
-  const failOpenTimer = setTimeout(() => { if (!turnstileToken) failOpen(); }, 12000);
+  const failOpenTimer = setTimeout(() => { if (!turnstileToken) failOpen(); }, 6000);
   s.onload = () => {
     try {
       window.turnstile.render("#turnstileBox", {
