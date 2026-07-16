@@ -147,6 +147,8 @@ h2 { margin: 0 0 18px; font-size: 22px; }
 }
 .agree input { width: 20px; height: 20px; margin-top: 1px; accent-color: var(--accent); }
 .agree a { color: var(--accent); }
+.turnstile-box { margin-bottom: 16px; min-height: 0; }
+.turnstile-box:empty { display: none; }
 
 .field { margin-bottom: 20px; }
 .field > label {

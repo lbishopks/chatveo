@@ -13,6 +13,12 @@ const PORT = process.env.PORT || 3000;
 const ADMIN_USER = (process.env.ADMIN_USER || "admin").trim();
 const ADMIN_PASSWORD = (process.env.ADMIN_PASSWORD || "changeme").trim();
 
+// Cloudflare Turnstile (bot protection). If keys are unset, Turnstile is disabled
+// so the site still works. Set TURNSTILE_SITE_KEY (public) + TURNSTILE_SECRET_KEY.
+const TURNSTILE_SITE_KEY = (process.env.TURNSTILE_SITE_KEY || "").trim();
+const TURNSTILE_SECRET = (process.env.TURNSTILE_SECRET_KEY || "").trim();
+const humanTokens = new Map(); // token -> expiry (proves a human passed Turnstile)
+
 const app = express();
 app.set("trust proxy", true); // honor X-Forwarded-For behind a host/proxy
 
@@ -24,6 +30,36 @@ app.use(express.json());
 
 function clientIp(req) {
   return (req.headers["x-forwarded-for"]?.split(",")[0].trim()) || req.socket.remoteAddress || "unknown";
+}
+
+// ---- Public config (client reads this to know if Turnstile is on) ----
+app.get("/api/config", (_req, res) => res.json({ turnstile: TURNSTILE_SITE_KEY || null }));
+
+// ---- Cloudflare Turnstile verification ----
+// On success we issue a short-lived "human" cookie the WebSocket checks, so bots
+// can't skip the gate and connect directly.
+app.post("/api/verify-turnstile", async (req, res) => {
+  if (!TURNSTILE_SECRET) return res.json({ ok: true, disabled: true });
+  const token = req.body?.token;
+  if (!token) return res.status(400).json({ ok: false });
+  try {
+    const form = new URLSearchParams({ secret: TURNSTILE_SECRET, response: token, remoteip: clientIp(req) });
+    const data = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", { method: "POST", body: form }).then((r) => r.json());
+    if (!data.success) return res.json({ ok: false });
+    const ht = randomUUID() + randomUUID();
+    humanTokens.set(ht, Date.now() + 2 * 60 * 60 * 1000); // 2h
+    res.setHeader("Set-Cookie", `fchuman=${ht}; HttpOnly; SameSite=Lax; Path=/${req.secure ? "; Secure" : ""}`);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("turnstile verify error", err.message);
+    res.status(500).json({ ok: false });
+  }
+});
+function isHuman(req) {
+  if (!TURNSTILE_SECRET) return true; // disabled
+  const ht = parseCookies(req).fchuman;
+  const exp = ht && humanTokens.get(ht);
+  return !!exp && exp > Date.now();
 }
 
 // ---- Sessions (in-memory token -> userId) ----
@@ -490,6 +526,12 @@ function leaveMatch(id, notifyPartner = true) {
 
 wss.on("connection", (ws, req) => {
   const ip = (req.headers["x-forwarded-for"]?.split(",")[0].trim()) || req.socket.remoteAddress || "unknown";
+
+  // Reject connections that didn't pass Turnstile (only enforced when configured).
+  if (!isHuman(req)) {
+    try { ws.send(JSON.stringify({ type: "needs-verify" })); ws.close(); } catch {}
+    return;
+  }
 
   // Reject banned IPs immediately.
   if (store.isBanned(ip)) {

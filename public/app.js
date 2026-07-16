@@ -73,9 +73,59 @@ async function refreshAccount() {
   refreshAccount();
 })();
 
-// ---- Age gate ----
-agree.addEventListener("change", () => (enterBtn.disabled = !agree.checked));
-enterBtn.addEventListener("click", () => {
+// ---- Age gate + Cloudflare Turnstile (bot check) ----
+let turnstileEnabled = false;
+let turnstileToken = null;
+
+function refreshGate() {
+  // Enter needs the 18+ agreement, and (if Turnstile is on) a solved challenge.
+  enterBtn.disabled = !agree.checked || (turnstileEnabled && !turnstileToken);
+}
+agree.addEventListener("change", refreshGate);
+
+// Load Turnstile if the server has it configured.
+(async function initTurnstile() {
+  let cfg = {};
+  try { cfg = await fetch("/api/config").then((r) => r.json()); } catch {}
+  if (!cfg.turnstile) return; // disabled — plain age gate
+  turnstileEnabled = true;
+  refreshGate();
+  const s = document.createElement("script");
+  s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+  s.async = true; s.defer = true;
+  s.onload = () => {
+    window.turnstile.render("#turnstileBox", {
+      sitekey: cfg.turnstile,
+      theme: "dark",
+      callback: (t) => { turnstileToken = t; refreshGate(); },
+      "expired-callback": () => { turnstileToken = null; refreshGate(); },
+      "error-callback": () => { turnstileToken = null; refreshGate(); },
+    });
+  };
+  document.head.appendChild(s);
+})();
+
+enterBtn.addEventListener("click", async () => {
+  if (turnstileEnabled) {
+    enterBtn.disabled = true;
+    try {
+      const r = await fetch("/api/verify-turnstile", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: turnstileToken }),
+      }).then((res) => res.json());
+      if (!r.ok) {
+        alert("Verification failed — please complete the challenge again.");
+        turnstileToken = null;
+        try { window.turnstile.reset("#turnstileBox"); } catch {}
+        refreshGate();
+        return;
+      }
+    } catch {
+      alert("Could not verify. Please try again.");
+      refreshGate();
+      return;
+    }
+  }
   gate.classList.add("hidden");
   setup.classList.remove("hidden");
 });
@@ -129,11 +179,13 @@ function connect() {
   };
   ws.onmessage = (e) => handleSignal(JSON.parse(e.data));
   ws.onclose = () => {
+    if (blockReconnect) return; // banned or needs re-verify — don't loop
     if (partnerActive) attemptingReconnect = true; // reconnect and try to rejoin partner
     setStatus("Reconnecting…");
     setTimeout(connect, 1500);
   };
 }
+let blockReconnect = false;
 
 function sendWs(msg) {
   if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
@@ -148,6 +200,21 @@ async function handleSignal(msg) {
   switch (msg.type) {
     case "welcome":
       myId = msg.id;
+      break;
+    case "needs-verify":
+      blockReconnect = true;
+      teardownPc();
+      chat.classList.add("hidden");
+      setup.classList.add("hidden");
+      gate.classList.remove("hidden");
+      turnstileToken = null;
+      try { window.turnstile && window.turnstile.reset("#turnstileBox"); } catch {}
+      refreshGate();
+      break;
+    case "banned":
+      blockReconnect = true;
+      teardownPc();
+      setStatus("You have been blocked from this service.");
       break;
     case "waiting":
       setStatus("Looking for someone…");
