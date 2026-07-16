@@ -39,8 +39,12 @@ function injectWithScripts(target, html) {
     const net = await fetch("/api/adnetwork").then((r) => r.json());
     if (net && net.enabled && (net.topHtml || net.bottomHtml || net.headHtml)) {
       if (net.headHtml) injectWithScripts(document.head, net.headHtml);
+      // Top/bottom bars only exist for banner tags. If there's no banner tag for
+      // a bar (e.g. head-only formats like In-Page Push), collapse the empty bar.
       if (net.topHtml) { adTop.innerHTML = ""; injectWithScripts(adTop, net.topHtml); }
+      else { adTop.classList.add("collapsed"); }
       if (net.bottomHtml) { adBottom.innerHTML = ""; injectWithScripts(adBottom, net.bottomHtml); }
+      else { adBottom.classList.add("collapsed"); }
       return; // network handles rendering + rotation
     }
   } catch { /* fall through to house ads */ }

@@ -344,9 +344,11 @@ h2 { margin: 0 0 18px; font-size: 22px; }
 /* Hide ad bars for premium users.
    Collapse to zero height instead of display:none so the bars remain grid
    items — otherwise #stage would fall into the "auto" row and collapse. */
-body.premium .adbar {
+body.premium .adbar,
+.adbar.collapsed {
   height: 0;
   min-height: 0;
   padding: 0;
   border: 0;
+  overflow: hidden;
 }
