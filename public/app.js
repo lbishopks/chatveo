@@ -93,15 +93,22 @@ agree.addEventListener("change", refreshGate);
   const s = document.createElement("script");
   s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
   s.async = true; s.defer = true;
+  // Fail-open safety net: never let a broken/blocked bot-check lock real users
+  // out. If Turnstile hasn't produced a token in 12s, drop the requirement.
+  const failOpen = () => { turnstileEnabled = false; turnstileToken = null; refreshGate(); };
+  const failOpenTimer = setTimeout(() => { if (!turnstileToken) failOpen(); }, 12000);
   s.onload = () => {
-    window.turnstile.render("#turnstileBox", {
-      sitekey: cfg.turnstile,
-      theme: "dark",
-      callback: (t) => { turnstileToken = t; refreshGate(); },
-      "expired-callback": () => { turnstileToken = null; refreshGate(); },
-      "error-callback": () => { turnstileToken = null; refreshGate(); },
-    });
+    try {
+      window.turnstile.render("#turnstileBox", {
+        sitekey: cfg.turnstile,
+        theme: "dark",
+        callback: (t) => { clearTimeout(failOpenTimer); turnstileToken = t; refreshGate(); },
+        "expired-callback": () => { turnstileToken = null; refreshGate(); },
+        "error-callback": () => { clearTimeout(failOpenTimer); failOpen(); }, // don't block on error
+      });
+    } catch { clearTimeout(failOpenTimer); failOpen(); }
   };
+  s.onerror = () => { clearTimeout(failOpenTimer); failOpen(); };
   document.head.appendChild(s);
 })();
 
