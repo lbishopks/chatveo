@@ -587,12 +587,15 @@ wss.on("connection", (ws, req) => {
         if (["male", "female", "any"].includes(msg.seeking)) me.seeking = msg.seeking;
         // premium comes from the account (set at connect), never from the client
         me.premium = me.userId ? !!store.findById(me.userId)?.premium : false;
+        // Gender filter is a Premium feature: free users always match "any".
+        if (!me.premium) me.seeking = "any";
         leaveMatch(id); // clear any existing match first
         enqueue(id);
         break;
       }
       case "next": {
         me.premium = me.userId ? !!store.findById(me.userId)?.premium : false;
+        if (!me.premium) me.seeking = "any";
         leaveMatch(id);
         enqueue(id);
         break;

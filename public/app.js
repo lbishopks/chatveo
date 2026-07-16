@@ -55,6 +55,24 @@ function applyPremium() {
   document.body.classList.toggle("premium", isPremium);
   $("goPremiumBtn").classList.toggle("hidden", isPremium);
   $("premiumStatus").classList.toggle("hidden", !isPremium);
+  // Gender filter is Premium-only: lock Men/Women for free users.
+  document.querySelectorAll('.seg[data-group="seeking"] button[data-val="male"], .seg[data-group="seeking"] button[data-val="female"]')
+    .forEach((b) => b.classList.toggle("locked", !isPremium));
+  const hint = $("seekingHint");
+  if (hint) hint.classList.toggle("hidden", isPremium);
+  // Free users are forced back to "Anyone".
+  if (!isPremium && prefs.seeking !== "any") {
+    prefs.seeking = "any";
+    document.querySelectorAll('.seg[data-group="seeking"] button')
+      .forEach((b) => b.classList.toggle("active", b.dataset.val === "any"));
+  }
+}
+
+// Prompt to upgrade (login first if anonymous).
+function promptPremium() {
+  if (!account) return openAuth();
+  $("premiumNote").textContent = "";
+  $("premiumModal").classList.remove("hidden");
 }
 
 async function refreshAccount() {
@@ -142,6 +160,7 @@ document.querySelectorAll(".seg").forEach((seg) => {
   const group = seg.dataset.group;
   seg.querySelectorAll("button").forEach((btn) => {
     btn.addEventListener("click", () => {
+      if (btn.classList.contains("locked")) { promptPremium(); return; } // Premium-gated
       seg.querySelectorAll("button").forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
       prefs[group] = btn.dataset.val;

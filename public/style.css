@@ -176,6 +176,19 @@ h2 { margin: 0 0 18px; font-size: 22px; }
   border-color: var(--accent);
   background: linear-gradient(135deg, rgba(255,61,119,.25), rgba(124,77,255,.25));
 }
+.seg button.locked {
+  position: relative;
+  opacity: .55;
+}
+.seg button.locked::after {
+  content: "🔒";
+  position: absolute;
+  top: 2px;
+  right: 5px;
+  font-size: 10px;
+}
+.seeking-hint { text-align: left; margin: 8px 2px 0; font-size: 12.5px; }
+.seeking-hint strong { color: #ffd479; }
 
 .btn {
   width: 100%;
