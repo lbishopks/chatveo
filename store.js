@@ -46,6 +46,11 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);
 `);
 
+// Add profile columns to existing users tables (idempotent; ignore if present).
+for (const col of ["displayName TEXT DEFAULT ''", "bio TEXT DEFAULT ''", "interests TEXT DEFAULT ''"]) {
+  try { db.exec(`ALTER TABLE users ADD COLUMN ${col}`); } catch { /* already exists */ }
+}
+
 function hashPassword(password, salt = randomBytes(16).toString("hex")) {
   return { salt, hash: scryptSync(password, salt, 64).toString("hex") };
 }
@@ -156,6 +161,17 @@ export const store = {
     return this.findById(userId);
   },
   listUsers() { return db.prepare(`SELECT * FROM users ORDER BY createdAt DESC`).all().map((r) => this._shape(r)); },
+  updateProfile(userId, p) {
+    const u = db.prepare(`SELECT id FROM users WHERE id=?`).get(userId);
+    if (!u) return null;
+    db.prepare(`UPDATE users SET displayName=?, bio=?, interests=? WHERE id=?`).run(
+      String(p.displayName || "").slice(0, 30),
+      String(p.bio || "").slice(0, 160),
+      String(p.interests || "").slice(0, 80),
+      userId
+    );
+    return this.findById(userId);
+  },
 
   // ---------- payments ----------
   addPayment(p) {
