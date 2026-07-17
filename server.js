@@ -87,7 +87,10 @@ function issueSession(req, res, userId) {
   return token;
 }
 function publicUser(u) {
-  return u ? { id: u.id, email: u.email, premium: !!u.premium, premiumUntil: u.premiumUntil } : null;
+  return u ? {
+    id: u.id, email: u.email, premium: !!u.premium, premiumUntil: u.premiumUntil,
+    displayName: u.displayName || "", bio: u.bio || "", interests: u.interests || "",
+  } : null;
 }
 
 // ---- Auth API ----
@@ -118,6 +121,15 @@ app.post("/api/auth/logout", (req, res) => {
 });
 
 app.get("/api/auth/me", (req, res) => res.json({ user: publicUser(userFromReq(req)) }));
+
+// Profile is a Premium perk — only premium accounts can set one.
+app.post("/api/profile", (req, res) => {
+  const user = userFromReq(req);
+  if (!user) return res.status(401).json({ error: "login_required" });
+  if (!user.premium) return res.status(403).json({ error: "premium_required" });
+  const updated = store.updateProfile(user.id, req.body || {});
+  res.json({ user: publicUser(updated) });
+});
 
 // ---- Public ads feed (client rotator reads this) ----
 app.get("/api/ads", (_req, res) => res.json(store.getEnabledAds()));
@@ -296,7 +308,7 @@ if (STRIPE_KEY) {
   stripe = new Stripe(STRIPE_KEY);
 }
 
-const PREMIUM_AMOUNT = Number(process.env.PREMIUM_AMOUNT || 999); // cents, $9.99
+const PREMIUM_AMOUNT = Number(process.env.PREMIUM_AMOUNT || 499); // cents, $4.99
 
 app.post("/create-checkout-session", async (req, res) => {
   // Premium is tied to an account, so a login is required.
@@ -460,8 +472,8 @@ function pair(aId, bId, reconnected = false) {
   b.sessionId = sessionId;
 
   // aId is the initiator; it will create the WebRTC offer.
-  send(aId, { type: "matched", initiator: true, peerGender: b.gender, reconnected });
-  send(bId, { type: "matched", initiator: false, peerGender: a.gender, reconnected });
+  send(aId, { type: "matched", initiator: true, peerGender: b.gender, peerProfile: b.profile, reconnected });
+  send(bId, { type: "matched", initiator: false, peerGender: a.gender, peerProfile: a.profile, reconnected });
 }
 
 // Park the dropped peer's partner in "awaiting" and hold their slot so the
@@ -527,10 +539,12 @@ function leaveMatch(id, notifyPartner = true) {
 wss.on("connection", (ws, req) => {
   const ip = (req.headers["x-forwarded-for"]?.split(",")[0].trim()) || req.socket.remoteAddress || "unknown";
 
-  // Reject connections that didn't pass Turnstile (only enforced when configured).
+  // Turnstile is ADVISORY, not a hard gate: the widget can fail for legitimate
+  // users (ad-script conflicts, extensions — error 400020), and the client
+  // fails open. Rejecting here would lock those users out entirely, so we only
+  // log; bots are handled by bans/moderation instead.
   if (!isHuman(req)) {
-    try { ws.send(JSON.stringify({ type: "needs-verify" })); ws.close(); } catch {}
-    return;
+    console.log(`[turnstile] unverified connection allowed (fail-open) from ${ip}`);
   }
 
   // Reject banned IPs immediately.
@@ -549,6 +563,8 @@ wss.on("connection", (ws, req) => {
     premium: !!account?.premium, userId: account?.id || null,
     email: account?.email || null, connectedAt: new Date().toISOString(),
     guestId: null, partnerGuestId: null, awaitingGuestId: null,
+    // Profile (Premium only) shown to the matched partner.
+    profile: account?.premium ? { name: account.displayName || "", bio: account.bio || "", interests: account.interests || "" } : null,
   });
   send(id, { type: "welcome", id, premium: !!account?.premium });
 
