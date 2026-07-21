@@ -182,6 +182,7 @@ startBtn.addEventListener("click", async () => {
     return;
   }
   localVideo.srcObject = localStream;
+  updateFlipBtnVisibility(); // now that permission is granted, we can count cameras
   setup.classList.add("hidden");
   chat.classList.remove("hidden");
   connect();
@@ -205,6 +206,7 @@ function connect() {
   };
   ws.onmessage = (e) => handleSignal(JSON.parse(e.data));
   ws.onclose = () => {
+    if (intentionalClose) { intentionalClose = false; return; } // user pressed Stop
     if (blockReconnect) return; // banned or needs re-verify — don't loop
     if (partnerActive) attemptingReconnect = true; // reconnect and try to rejoin partner
     setStatus("Reconnecting…");
@@ -212,6 +214,7 @@ function connect() {
   };
 }
 let blockReconnect = false;
+let intentionalClose = false; // set by Stop so we don't auto-reconnect
 
 function sendWs(msg) {
   if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
@@ -349,25 +352,85 @@ $("nextBtn").addEventListener("click", () => {
   sendWs({ type: "next", gender: prefs.gender, seeking: prefs.seeking, premium: isPremium });
 });
 
+// Stop = fully end the session: leave the queue, release the camera/mic (so the
+// camera light goes off), and go back to the setup screen.
 $("stopBtn").addEventListener("click", () => {
   clearInterval(reconnectCountdown);
+  clearTimeout(reconnectFallback);
   localStorage.removeItem("chatveo_active");
   teardownPc();
   sendWs({ type: "stop" });
-  setStatus("Stopped. Tap “Next” to start again.");
+
+  if (localStream) {
+    localStream.getTracks().forEach((t) => t.stop()); // releases camera + mic
+    localStream = null;
+  }
+  localVideo.srcObject = null;
+  remoteVideo.srcObject = null;
+
+  intentionalClose = true;
+  if (ws) { try { ws.close(); } catch {} }
+  ws = null;
+
+  clearMessages();
+  setStatus("");
+  chat.classList.add("hidden");
+  setup.classList.remove("hidden");
 });
 
 let micOn = true, camOn = true;
 $("muteBtn").addEventListener("click", (e) => {
+  if (!localStream) return;
   micOn = !micOn;
   localStream.getAudioTracks().forEach((t) => (t.enabled = micOn));
   e.currentTarget.textContent = micOn ? "🎤" : "🔇";
 });
 $("camBtn").addEventListener("click", (e) => {
+  if (!localStream) return;
   camOn = !camOn;
   localStream.getVideoTracks().forEach((t) => (t.enabled = camOn));
   e.currentTarget.style.opacity = camOn ? "1" : ".5";
 });
+
+// ---- Front / rear camera switch ----
+// Swaps the video track in place (and in the live call via replaceTrack) so the
+// partner keeps seeing you without renegotiating.
+let facingMode = "user";
+$("flipBtn").addEventListener("click", async (e) => {
+  if (!localStream) return;
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  const next = facingMode === "user" ? "environment" : "user";
+  try {
+    const tmp = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: next } } });
+    const newTrack = tmp.getVideoTracks()[0];
+    if (pc) {
+      const sender = pc.getSenders().find((s) => s.track && s.track.kind === "video");
+      if (sender) await sender.replaceTrack(newTrack);
+    }
+    const oldTrack = localStream.getVideoTracks()[0];
+    if (oldTrack) { localStream.removeTrack(oldTrack); oldTrack.stop(); }
+    localStream.addTrack(newTrack);
+    localVideo.srcObject = localStream;
+    newTrack.enabled = camOn;
+    facingMode = next;
+  } catch (err) {
+    addMessage("sys", "Couldn't switch camera: " + err.message);
+  }
+  btn.disabled = false;
+});
+
+// Only show the flip button when the device actually has more than one camera.
+// Must run AFTER camera permission is granted — browsers hide device details
+// until then, so checking on page load would wrongly hide it on phones.
+async function updateFlipBtnVisibility() {
+  const btn = $("flipBtn");
+  if (!btn || !navigator.mediaDevices?.enumerateDevices) return;
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    btn.classList.toggle("hidden", devices.filter((d) => d.kind === "videoinput").length < 2);
+  } catch { /* leave it visible */ }
+}
 
 $("reportBtn").addEventListener("click", () => {
   if (!partnerActive) return;
