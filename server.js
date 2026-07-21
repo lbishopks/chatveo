@@ -136,6 +136,25 @@ app.get("/api/ads", (_req, res) => res.json(store.getEnabledAds()));
 // Public ad-network config (zone tags are not secret; the client needs them to render).
 app.get("/api/adnetwork", (_req, res) => res.json(store.getAdNetwork()));
 
+// Ad tags run inside a SANDBOXED IFRAME served from here, never in the main
+// document. A third-party ad script broke the chat UI once; isolating it means
+// it cannot touch our DOM, hijack clicks, or navigate the page away.
+// `slot` picks which tag to render: "top" | "bottom" | "head" (default).
+app.get("/ad-frame", (req, res) => {
+  const cfg = store.getAdNetwork();
+  let tag = "";
+  if (cfg.enabled) {
+    const slot = String(req.query.slot || "head");
+    tag = (slot === "top" && cfg.topHtml) || (slot === "bottom" && cfg.bottomHtml) || cfg.headHtml || "";
+  }
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.setHeader("Cache-Control", "no-store");
+  res.send(`<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;background:transparent}</style>
+</head><body>${tag}</body></html>`);
+});
+
 // ---- WebRTC ICE config (STUN always; TURN when env vars are set) ----
 // TURN credentials are necessarily exposed to the browser (that's how WebRTC
 // works), so serving them here is expected. Set TURN_URL / TURN_USER / TURN_PASS.

@@ -13,38 +13,40 @@
 const ROTATE_MS = 6000;
 const FALLBACK = [{ title: "💎 Go Premium — Skip the Wait", sub: "Priority matching & no ads", href: "#premium" }];
 
-// Insert an HTML string into `target`, re-creating <script> nodes so they run
-// (browsers do NOT execute scripts inserted via innerHTML).
-function injectWithScripts(target, html) {
-  const tmp = document.createElement("div");
-  tmp.innerHTML = html;
-  Array.from(tmp.childNodes).forEach((node) => {
-    if (node.tagName === "SCRIPT") {
-      const s = document.createElement("script");
-      for (const a of node.attributes) s.setAttribute(a.name, a.value);
-      s.textContent = node.textContent;
-      target.appendChild(s);
-    } else {
-      target.appendChild(node);
-    }
-  });
+// Build a SANDBOXED iframe that renders an ad tag in its own document.
+// The sandbox deliberately omits `allow-same-origin` and `allow-top-navigation`,
+// so the ad script cannot reach our DOM, hijack clicks, or redirect the page —
+// it can only draw inside its own box and open its click-through in a new tab.
+function adFrame(slot) {
+  const f = document.createElement("iframe");
+  f.src = `/ad-frame?slot=${encodeURIComponent(slot)}`;
+  f.setAttribute("sandbox", "allow-scripts allow-popups allow-popups-to-escape-sandbox");
+  f.setAttribute("scrolling", "no");
+  f.setAttribute("loading", "lazy");
+  f.title = "Advertisement";
+  f.style.cssText = "width:100%;height:100%;border:0;display:block;background:transparent";
+  return f;
 }
 
 (async function initAds() {
   const adTop = document.getElementById("adTop");
   const adBottom = document.getElementById("adBottom");
 
-  // ---- Mode 1: ad network ----
+  // ---- Mode 1: ad network (always isolated in an iframe) ----
   try {
     const net = await fetch("/api/adnetwork").then((r) => r.json());
     if (net && net.enabled && (net.topHtml || net.bottomHtml || net.headHtml)) {
-      if (net.headHtml) injectWithScripts(document.head, net.headHtml);
-      // Top/bottom bars only exist for banner tags. If there's no banner tag for
-      // a bar (e.g. head-only formats like In-Page Push), collapse the empty bar.
-      if (net.topHtml) { adTop.innerHTML = ""; injectWithScripts(adTop, net.topHtml); }
+      // A single site-wide tag (e.g. In-Page Push) renders once, in the bottom
+      // bar, so we don't double-count impressions for one zone.
+      if (net.topHtml) { adTop.innerHTML = ""; adTop.appendChild(adFrame("top")); }
       else { adTop.classList.add("collapsed"); }
-      if (net.bottomHtml) { adBottom.innerHTML = ""; injectWithScripts(adBottom, net.bottomHtml); }
-      else { adBottom.classList.add("collapsed"); }
+
+      if (net.bottomHtml || net.headHtml) {
+        adBottom.innerHTML = "";
+        adBottom.appendChild(adFrame(net.bottomHtml ? "bottom" : "head"));
+      } else {
+        adBottom.classList.add("collapsed");
+      }
       return; // network handles rendering + rotation
     }
   } catch { /* fall through to house ads */ }
